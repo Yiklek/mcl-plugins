@@ -71,7 +71,7 @@ object PluginMain : KotlinPlugin(
     }
 ) {
     private fun checkContact(list: Collection<Long>?, code: String, gId: Long, isFriend: Boolean): Boolean {
-        return (list == null || list.isEmpty() || list.contains(gId))
+        return list != null && (list.isEmpty() || list.contains(gId))
             && (isFriend ||
             code.contains("[mirai:at:${Config.botId}]"))
     }
