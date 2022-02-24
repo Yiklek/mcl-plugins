@@ -3,7 +3,7 @@
 ## reply-trigger
 
 ```yaml
-botId: 123456
+botIds: [ 123456 ]
 rules:
   - groups: # 群   设置为null关闭，空列表允许所有
       - 12345
