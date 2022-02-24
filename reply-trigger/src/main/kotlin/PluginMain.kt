@@ -76,12 +76,9 @@ object PluginMain : KotlinPlugin(
             code.contains("[mirai:at:${Config.botId}]"))
     }
 
-    private suspend fun reply(contact: Contact, message: String) {
-        contact.sendMessage(message)
-    }
 
     private suspend fun loopRule(
-        serializeToMiraiCode: String,
+        encodedMessage: String,
         contact: Contact,
         supplier: (Rule) -> Collection<Long>?
     ) {
@@ -90,11 +87,11 @@ object PluginMain : KotlinPlugin(
             for (it in rule.triggers) {
                 if (checkContact(
                         supplier.invoke(rule),
-                        serializeToMiraiCode,
+                        encodedMessage,
                         contact.id, contact is Friend
-                    ) && serializeToMiraiCode.contains(it)
+                    ) && encodedMessage.contains(it)
                 ) {
-                    reply(contact, rule.reply)
+                    contact.sendMessage(rule.reply)
                     break@LOOP_RULES
                 }
             }
@@ -107,12 +104,10 @@ object PluginMain : KotlinPlugin(
         CommandManager.registerCommand(Command)
         val eventChannel = GlobalEventChannel.parentScope(this)
         eventChannel.subscribeAlways<GroupMessageEvent> {
-            val serializeToMiraiCode = message.serializeToMiraiCode()
-            loopRule(serializeToMiraiCode, group) { it.groups }
+            loopRule(message.serializeToMiraiCode(), group) { it.groups }
         }
         eventChannel.subscribeAlways<FriendMessageEvent> {
-            val serializeToMiraiCode = message.serializeToMiraiCode()
-            loopRule(serializeToMiraiCode, friend) { it.friends }
+            loopRule(message.serializeToMiraiCode(), friend) { it.friends }
         }
     }
 
