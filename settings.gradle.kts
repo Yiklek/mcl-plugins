@@ -1,2 +1,2 @@
 rootProject.name = "mcl-plugin"
-include(":trigger-reply")
+include(":reply-trigger")

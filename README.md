@@ -1,5 +1,15 @@
-# mirai-console-plugin-template
+# mcl-plugins
 
-[Mirai Console](https://github.com/mamoe/mirai-console) 插件模板, 使用 Kotlin + Gradle.
+## reply-trigger
 
-[如何使用](https://github.com/project-mirai/how-to-use-plugin-template)
+```yaml
+botId: 123456
+rules:
+  - groups:     # 群
+      - 12345
+    friends:    # 好友
+      - 12345
+    triggers:   # 触发词
+      - 1
+    reply: 2    # 回复词
+```
