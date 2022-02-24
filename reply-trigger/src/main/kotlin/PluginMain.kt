@@ -12,6 +12,7 @@ import net.mamoe.mirai.console.data.value
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescription
 import net.mamoe.mirai.console.plugin.jvm.KotlinPlugin
 import net.mamoe.mirai.contact.Contact
+import net.mamoe.mirai.contact.Friend
 import net.mamoe.mirai.event.GlobalEventChannel
 import net.mamoe.mirai.event.events.FriendMessageEvent
 import net.mamoe.mirai.event.events.GroupMessageEvent
@@ -51,6 +52,7 @@ fun reloadConfig() {
     Config.reload()
     PluginMain.logger.info { "reply-trigger config %s".format(Json.encodeToString(Config.rules)) }
 }
+
 @Serializable
 class Rule(val groups: Set<Long>? = null, val friends: Set<Long>? = null, val triggers: Set<String>, val reply: String)
 
@@ -68,21 +70,27 @@ object PluginMain : KotlinPlugin(
         )
     }
 ) {
-    private fun checkContact(list: Collection<Long>, code: String, gId: Long): Boolean {
-        return (list.isEmpty() || list.contains(gId)) && code.contains("[mirai:at:${Config.botId}]")
+    private fun checkContact(list: Collection<Long>?, code: String, gId: Long, isFriend: Boolean): Boolean {
+        return (list == null || list.isEmpty() || list.contains(gId))
+            && (isFriend ||
+            code.contains("[mirai:at:${Config.botId}]"))
     }
 
     private suspend fun reply(contact: Contact, message: String) {
         contact.sendMessage(message)
     }
 
-    private suspend fun loopRule(serializeToMiraiCode: String, contact: Contact, supplier: (Rule) -> Collection<Long>) {
+    private suspend fun loopRule(
+        serializeToMiraiCode: String,
+        contact: Contact,
+        supplier: (Rule) -> Collection<Long>?
+    ) {
         for (rule in Config.rules!!) {
             rule.triggers.forEach {
                 if (checkContact(
                         supplier.invoke(rule),
                         serializeToMiraiCode,
-                        contact.id
+                        contact.id, contact is Friend
                     ) && serializeToMiraiCode.contains(it)
                 ) {
                     reply(contact, rule.reply)
@@ -100,11 +108,11 @@ object PluginMain : KotlinPlugin(
         val eventChannel = GlobalEventChannel.parentScope(this)
         eventChannel.subscribeAlways<GroupMessageEvent> {
             val serializeToMiraiCode = message.serializeToMiraiCode()
-            loopRule(serializeToMiraiCode, group) { it.groups!! }
+            loopRule(serializeToMiraiCode, group) { it.groups }
         }
         eventChannel.subscribeAlways<FriendMessageEvent> {
             val serializeToMiraiCode = message.serializeToMiraiCode()
-            loopRule(serializeToMiraiCode, friend) { it.friends!! }
+            loopRule(serializeToMiraiCode, friend) { it.friends }
         }
     }
 
