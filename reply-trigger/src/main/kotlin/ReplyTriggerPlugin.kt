@@ -1,6 +1,6 @@
-package io.github.yiklek.mcl.plugin
+package io.github.yiklek.mcl.plugin.trigger
 
-import io.github.yiklek.mcl.plugin.PluginMain.reload
+import io.github.yiklek.mcl.plugin.trigger.ReplyTriggerPlugin.reload
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -39,8 +39,7 @@ object Config : ReadOnlyPluginConfig("ReplyTrigger") {
 }
 
 object Command : SimpleCommand(
-    PluginMain, "reload",
-    description = "reload config"
+    ReplyTriggerPlugin, "reload", description = "reload config"
 ) {
     @Suppress("unused")
     @Handler // 标记这是指令处理器  // 函数名随意
@@ -51,53 +50,37 @@ object Command : SimpleCommand(
 
 fun reloadConfig() {
     Config.reload()
-    PluginMain.logger.info { "reply-trigger config rules: %s".format(Json.encodeToString(Config.rules)) }
-    PluginMain.logger.info { "reply-trigger config botIds: %s".format(Json.encodeToString(Config.botIds)) }
+    ReplyTriggerPlugin.logger.info { "reply-trigger config rules: %s".format(Json.encodeToString(Config.rules)) }
+    ReplyTriggerPlugin.logger.info { "reply-trigger config botIds: %s".format(Json.encodeToString(Config.botIds)) }
 }
 
 @Serializable
 class Rule(val groups: Set<Long>? = null, val friends: Set<Long>? = null, val triggers: Set<String>, val reply: String)
 
-object PluginMain : KotlinPlugin(
-    JvmPluginDescription(
-        id = "io.github.yiklek.mcl.plugin",
-        name = "trigger-reply",
-        version = "0.1.0"
-    ) {
-        author("Yiklek")
-        info(
-            """
+object ReplyTriggerPlugin : KotlinPlugin(JvmPluginDescription(
+    id = "io.github.yiklek.mcl.plugin.reply-trigger", name = "reply-trigger", version = "0.1.0"
+) {
+    author("Yiklek")
+    info(
+        """
             关键字触发回复
         """.trimIndent()
-        )
-    }
-) {
+    )
+}) {
     private fun checkContact(
-        list: Collection<Long>?,
-        code: String,
-        gId: Long,
-        botId: Long,
-        isFriend: Boolean
+        list: Collection<Long>?, code: String, gId: Long, botId: Long, isFriend: Boolean
     ): Boolean {
-        return list != null && (list.isEmpty() || list.contains(gId))
-            && (isFriend ||
-            code.contains(At(botId).serializeToMiraiCode()))
+        return list != null && (list.isEmpty() || list.contains(gId)) && (isFriend || code.contains(At(botId).serializeToMiraiCode()))
     }
 
 
     private suspend fun loopRule(
-        encodedMessage: String,
-        botId: Long,
-        contact: Contact,
-        supplier: (Rule) -> Collection<Long>?
+        encodedMessage: String, botId: Long, contact: Contact, supplier: (Rule) -> Collection<Long>?
     ) {
-        LOOP_RULES@
-        for (rule in Config.rules!!) {
+        LOOP_RULES@ for (rule in Config.rules!!) {
             for (it in rule.triggers) {
                 if (checkContact(
-                        supplier.invoke(rule),
-                        encodedMessage,
-                        contact.id, botId, contact is Friend
+                        supplier.invoke(rule), encodedMessage, contact.id, botId, contact is Friend
                     ) && encodedMessage.contains(it)
                 ) {
                     contact.sendMessage(rule.reply)
