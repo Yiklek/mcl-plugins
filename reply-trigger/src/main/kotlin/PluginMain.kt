@@ -16,6 +16,7 @@ import net.mamoe.mirai.contact.Friend
 import net.mamoe.mirai.event.GlobalEventChannel
 import net.mamoe.mirai.event.events.FriendMessageEvent
 import net.mamoe.mirai.event.events.GroupMessageEvent
+import net.mamoe.mirai.message.data.At
 import net.mamoe.mirai.utils.info
 
 /**
@@ -80,7 +81,7 @@ object PluginMain : KotlinPlugin(
     ): Boolean {
         return list != null && (list.isEmpty() || list.contains(gId))
             && (isFriend ||
-            code.contains("[mirai:at:${botId}]"))
+            code.contains(At(botId).serializeToMiraiCode()))
     }
 
 
