@@ -85,8 +85,9 @@ object PluginMain : KotlinPlugin(
         contact: Contact,
         supplier: (Rule) -> Collection<Long>?
     ) {
+        LOOP_RULES@
         for (rule in Config.rules!!) {
-            rule.triggers.forEach {
+            for (it in rule.triggers) {
                 if (checkContact(
                         supplier.invoke(rule),
                         serializeToMiraiCode,
@@ -94,10 +95,9 @@ object PluginMain : KotlinPlugin(
                     ) && serializeToMiraiCode.contains(it)
                 ) {
                     reply(contact, rule.reply)
-                    return@forEach
+                    break@LOOP_RULES
                 }
             }
-            break
         }
     }
 
