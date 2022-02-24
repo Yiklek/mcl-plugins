@@ -34,7 +34,7 @@ import net.mamoe.mirai.utils.info
  */
 object Config : ReadOnlyPluginConfig("ReplyTrigger") {
     var rules: List<Rule>? by value()
-    var botId: Long by value()
+    var botIds: Set<Long> by value()
 }
 
 object Command : SimpleCommand(
@@ -50,7 +50,8 @@ object Command : SimpleCommand(
 
 fun reloadConfig() {
     Config.reload()
-    PluginMain.logger.info { "reply-trigger config %s".format(Json.encodeToString(Config.rules)) }
+    PluginMain.logger.info { "reply-trigger config rules: %s".format(Json.encodeToString(Config.rules)) }
+    PluginMain.logger.info { "reply-trigger config botIds: %s".format(Json.encodeToString(Config.botIds)) }
 }
 
 @Serializable
@@ -70,15 +71,22 @@ object PluginMain : KotlinPlugin(
         )
     }
 ) {
-    private fun checkContact(list: Collection<Long>?, code: String, gId: Long, isFriend: Boolean): Boolean {
+    private fun checkContact(
+        list: Collection<Long>?,
+        code: String,
+        gId: Long,
+        botId: Long,
+        isFriend: Boolean
+    ): Boolean {
         return list != null && (list.isEmpty() || list.contains(gId))
             && (isFriend ||
-            code.contains("[mirai:at:${Config.botId}]"))
+            code.contains("[mirai:at:${botId}]"))
     }
 
 
     private suspend fun loopRule(
         encodedMessage: String,
+        botId: Long,
         contact: Contact,
         supplier: (Rule) -> Collection<Long>?
     ) {
@@ -88,7 +96,7 @@ object PluginMain : KotlinPlugin(
                 if (checkContact(
                         supplier.invoke(rule),
                         encodedMessage,
-                        contact.id, contact is Friend
+                        contact.id, botId, contact is Friend
                     ) && encodedMessage.contains(it)
                 ) {
                     contact.sendMessage(rule.reply)
@@ -104,10 +112,14 @@ object PluginMain : KotlinPlugin(
         CommandManager.registerCommand(Command)
         val eventChannel = GlobalEventChannel.parentScope(this)
         eventChannel.subscribeAlways<GroupMessageEvent> {
-            loopRule(message.serializeToMiraiCode(), group) { it.groups }
+            if (Config.botIds.contains(bot.id)) {
+                loopRule(message.serializeToMiraiCode(), bot.id, group) { it.groups }
+            }
         }
         eventChannel.subscribeAlways<FriendMessageEvent> {
-            loopRule(message.serializeToMiraiCode(), friend) { it.friends }
+            if (Config.botIds.contains(bot.id)) {
+                loopRule(message.serializeToMiraiCode(), bot.id, friend) { it.friends }
+            }
         }
     }
 
