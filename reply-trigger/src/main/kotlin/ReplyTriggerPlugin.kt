@@ -4,6 +4,7 @@ import io.github.yiklek.mcl.plugin.trigger.ReplyTriggerPlugin.reload
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import net.mamoe.mirai.Bot
 import net.mamoe.mirai.console.command.CommandManager
 import net.mamoe.mirai.console.command.CommandSender
 import net.mamoe.mirai.console.command.SimpleCommand
@@ -13,6 +14,7 @@ import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescription
 import net.mamoe.mirai.console.plugin.jvm.KotlinPlugin
 import net.mamoe.mirai.contact.Contact
 import net.mamoe.mirai.contact.Friend
+import net.mamoe.mirai.contact.Group
 import net.mamoe.mirai.event.GlobalEventChannel
 import net.mamoe.mirai.event.events.FriendMessageEvent
 import net.mamoe.mirai.event.events.GroupMessageEvent
@@ -38,13 +40,40 @@ object Config : ReadOnlyPluginConfig("ReplyTrigger") {
     var botIds: Set<Long> by value()
 }
 
-object Command : SimpleCommand(
-    ReplyTriggerPlugin, "reload", description = "reload config"
+object ReplyCommand : SimpleCommand(
+    ReplyTriggerPlugin, "reply", description = "admin reply conmand"
 ) {
     @Suppress("unused")
-    @Handler // 标记这是指令处理器  // 函数名随意
-    fun CommandSender.handle() { // 这两个参数会被作为指令参数要求
-        reloadConfig()
+    @Handler
+    suspend// 标记这是指令处理器  // 函数名随意
+    fun CommandSender.handle(trigger: String) { // 这两个参数会被作为指令参数要求
+        if (bot == null) {
+            return
+        }
+        checkBotId(bot!!.id) {
+            if (this.subject != null) {
+                ReplyTriggerPlugin.loopRule(trigger, 0, subject!!, {
+                    if (subject!! is Group) {
+                        it.groups
+                    } else {
+                        it.friends
+                    }
+                }, { true })
+            }
+        }
+    }
+}
+
+object SendCommand : SimpleCommand(
+    ReplyTriggerPlugin, "send", description = "admin send conmand"
+) {
+    @Suppress("unused")
+    @Handler
+    suspend// 标记这是指令处理器  // 函数名随意
+    fun CommandSender.handle(source: Long, target: Long, trigger: String) { // 这两个参数会被作为指令参数要求
+        Bot.getInstance(source).getGroup(target)?.let { group ->
+            ReplyTriggerPlugin.loopRule(trigger, 0, group, { it.groups }, { true })
+        }
     }
 }
 
@@ -57,30 +86,41 @@ fun reloadConfig() {
 @Serializable
 class Rule(val groups: Set<Long>? = null, val friends: Set<Long>? = null, val triggers: Set<String>, val reply: String)
 
-object ReplyTriggerPlugin : KotlinPlugin(JvmPluginDescription(
-    id = "io.github.yiklek.mcl.plugin.reply-trigger", name = "reply-trigger", version = "0.1.0"
-) {
-    author("Yiklek")
-    info(
-        """
+suspend fun checkBotId(id: Long, run: suspend () -> Unit) {
+    if (Config.botIds.contains(id)) {
+        run.invoke()
+    }
+}
+
+object ReplyTriggerPlugin : KotlinPlugin(
+    JvmPluginDescription(
+        id = "io.github.yiklek.mcl.plugin.reply-trigger", name = "reply-trigger", version = "0.1.0"
+    ) {
+        author("Yiklek")
+        info(
+            """
             关键字触发回复
         """.trimIndent()
-    )
+        )
 }) {
     private fun checkContact(
-        list: Collection<Long>?, code: String, gId: Long, botId: Long, isFriend: Boolean
+        list: Collection<Long>?, code: String, contactId: Long, botId: Long, isFriend: Boolean
     ): Boolean {
-        return list != null && (list.isEmpty() || list.contains(gId)) && (isFriend || code.contains(At(botId).serializeToMiraiCode()))
+        return list != null && (list.isEmpty() || list.contains(contactId)) && (isFriend || code.contains(At(botId).serializeToMiraiCode()))
     }
 
 
-    private suspend fun loopRule(
-        encodedMessage: String, botId: Long, contact: Contact, supplier: (Rule) -> Collection<Long>?
+    suspend fun loopRule(
+        encodedMessage: String,
+        botId: Long,
+        contact: Contact,
+        supplier: (Rule) -> Collection<Long>?,
+        isFriend: (Contact) -> Boolean
     ) {
         LOOP_RULES@ for (rule in Config.rules!!) {
             for (it in rule.triggers) {
                 if (checkContact(
-                        supplier.invoke(rule), encodedMessage, contact.id, botId, contact is Friend
+                        supplier.invoke(rule), encodedMessage, contact.id, botId, isFriend.invoke(contact)
                     ) && encodedMessage.contains(it)
                 ) {
                     contact.sendMessage(rule.reply)
@@ -93,16 +133,17 @@ object ReplyTriggerPlugin : KotlinPlugin(JvmPluginDescription(
     override fun onEnable() {
         logger.info { "reply-trigger plugin enable" }
         reloadConfig()
-        CommandManager.registerCommand(Command)
+        CommandManager.registerCommand(ReplyCommand)
+        CommandManager.registerCommand(SendCommand)
         val eventChannel = GlobalEventChannel.parentScope(this)
         eventChannel.subscribeAlways<GroupMessageEvent> {
-            if (Config.botIds.contains(bot.id)) {
-                loopRule(message.serializeToMiraiCode(), bot.id, group) { it.groups }
+            checkBotId(bot.id) {
+                loopRule(message.serializeToMiraiCode(), bot.id, group, { it.groups }, { it is Friend })
             }
         }
         eventChannel.subscribeAlways<FriendMessageEvent> {
-            if (Config.botIds.contains(bot.id)) {
-                loopRule(message.serializeToMiraiCode(), bot.id, friend) { it.friends }
+            checkBotId(bot.id) {
+                loopRule(message.serializeToMiraiCode(), bot.id, friend, { it.friends }, { it is Friend })
             }
         }
     }

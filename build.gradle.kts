@@ -19,6 +19,7 @@ allprojects {
     repositories {
         mavenCentral()
         maven("https://maven.aliyun.com/repository/public") // 阿里云国内代理仓库
+        maven("https://jitpack.io")
     }
     dependencies {
         api(platform("net.mamoe:mirai-bom:2.10.0"))
@@ -32,6 +33,7 @@ dependencies {
     implementation(project(":reply-trigger"))
     implementation(project(":cloud-recruit"))
     implementation("xyz.cssxsh.mirai:mirai-device-generator:1.0.2")
+    implementation("com.github.project-mirai:chat-command:0.5.1")
 }
 application {
     mainClass.set("RunMiraiKt")
