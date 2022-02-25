@@ -1,5 +1,5 @@
-import io.github.yiklek.mcl.plugin.cloud.CloudRecruitPlugin
-import io.github.yiklek.mcl.plugin.trigger.ReplyTriggerPlugin
+import com.github.yiklek.mcl.plugin.cloud.CloudRecruitPlugin
+import com.github.yiklek.mcl.plugin.trigger.ReplyTriggerPlugin
 import net.mamoe.mirai.console.MiraiConsole
 import net.mamoe.mirai.console.plugin.PluginManager.INSTANCE.enable
 import net.mamoe.mirai.console.plugin.PluginManager.INSTANCE.load

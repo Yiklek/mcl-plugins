@@ -1,6 +1,6 @@
-package io.github.yiklek.mcl.plugin.trigger
+package com.github.yiklek.mcl.plugin.trigger
 
-import io.github.yiklek.mcl.plugin.trigger.ReplyTriggerPlugin.reload
+import com.github.yiklek.mcl.plugin.trigger.ReplyTriggerPlugin.reload
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -102,7 +102,7 @@ object ReplyTriggerPlugin : KotlinPlugin(
             关键字触发回复
         """.trimIndent()
         )
-}) {
+    }) {
     private fun checkContact(
         list: Collection<Long>?, code: String, contactId: Long, botId: Long, isFriend: Boolean
     ): Boolean {

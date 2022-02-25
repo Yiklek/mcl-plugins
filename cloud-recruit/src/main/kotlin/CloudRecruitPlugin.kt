@@ -1,6 +1,6 @@
-package io.github.yiklek.mcl.plugin.cloud
+package com.github.yiklek.mcl.plugin.cloud
 
-import io.github.yiklek.mcl.plugin.cloud.CloudRecruitPlugin.reload
+import com.github.yiklek.mcl.plugin.cloud.CloudRecruitPlugin.reload
 import net.mamoe.mirai.console.data.ReadOnlyPluginConfig
 import net.mamoe.mirai.console.data.value
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescription
