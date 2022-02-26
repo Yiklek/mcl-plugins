@@ -1,5 +1,7 @@
 # mcl-plugins
 
+[mirai-console](https://github.com/mamoe/mirai-console) 插件
+
 ## Usage
 
 **Gradle**
