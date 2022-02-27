@@ -38,6 +38,7 @@ import net.mamoe.mirai.utils.info
 object Config : ReadOnlyPluginConfig("ReplyTrigger") {
     var rules: List<Rule>? by value()
     var botIds: Set<Long> by value()
+    var prefix: String = ""
 }
 
 object ReplyCommand : SimpleCommand(
@@ -84,7 +85,10 @@ fun reloadConfig() {
 }
 
 @Serializable
-class Rule(val groups: Set<Long>? = null, val friends: Set<Long>? = null, val triggers: Set<String>, val reply: String)
+class Rule(
+    val groups: Set<Long>? = null, val friends: Set<Long>? = null,
+    val triggers: Set<String>, val reply: String, val requireAt: Boolean = true
+)
 
 suspend fun checkBotId(id: Long, run: suspend () -> Unit) {
     if (Config.botIds.contains(id)) {
@@ -104,9 +108,9 @@ object ReplyTriggerPlugin : KotlinPlugin(
         )
     }) {
     private fun checkContact(
-        list: Collection<Long>?, code: String, contactId: Long, botId: Long, isFriend: Boolean
+        list: Collection<Long>?, code: String, contactId: Long, botId: Long, requireAt: Boolean
     ): Boolean {
-        return list != null && (list.isEmpty() || list.contains(contactId)) && (isFriend || code.contains(At(botId).serializeToMiraiCode()))
+        return list != null && (list.isEmpty() || list.contains(contactId)) && (!requireAt || code.contains(At(botId).serializeToMiraiCode()))
     }
 
 
@@ -115,13 +119,17 @@ object ReplyTriggerPlugin : KotlinPlugin(
         botId: Long,
         contact: Contact,
         supplier: (Rule) -> Collection<Long>?,
-        isFriend: (Contact) -> Boolean
+        requireAt: (Contact) -> Boolean
     ) {
         LOOP_RULES@ for (rule in Config.rules!!) {
             for (it in rule.triggers) {
                 if (checkContact(
-                        supplier.invoke(rule), encodedMessage, contact.id, botId, isFriend.invoke(contact)
-                    ) && encodedMessage.contains(it)
+                        supplier.invoke(rule),
+                        encodedMessage,
+                        contact.id,
+                        botId,
+                        rule.requireAt && requireAt.invoke(contact)
+                    ) && encodedMessage.contains(Config.prefix + it)
                 ) {
                     contact.sendMessage(rule.reply)
                     break@LOOP_RULES
