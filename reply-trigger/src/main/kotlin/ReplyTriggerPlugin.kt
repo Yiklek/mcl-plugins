@@ -53,7 +53,7 @@ object ReplyCommand : SimpleCommand(
         }
         checkBotId(bot!!.id) {
             if (this.subject != null) {
-                ReplyTriggerPlugin.loopRule(trigger, bot!!.id, subject!!, {
+                ReplyTriggerPlugin.loopRule(trigger, 0, subject!!, {
                     if (subject!! is Group) {
                         it.groups
                     } else {
@@ -124,7 +124,7 @@ object ReplyTriggerPlugin : KotlinPlugin(
         checkPrefix: Boolean
     ) {
         LOOP_RULES@ for (rule in Config.rules!!) {
-            if (rule.botIds != null && !rule.botIds.contains(botId)) {
+            if (rule.botIds != null && !(rule.botIds.contains(botId) || botId == 0L)) {
                 continue@LOOP_RULES
             }
             for (it in rule.triggers) {
