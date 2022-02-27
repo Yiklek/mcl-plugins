@@ -59,7 +59,7 @@ object ReplyCommand : SimpleCommand(
                     } else {
                         it.friends
                     }
-                }, { true })
+                }, { false }, false)
             }
         }
     }
@@ -73,7 +73,7 @@ object SendCommand : SimpleCommand(
     suspend// 标记这是指令处理器  // 函数名随意
     fun CommandSender.handle(source: Long, target: Long, trigger: String) { // 这两个参数会被作为指令参数要求
         Bot.getInstance(source).getGroup(target)?.let { group ->
-            ReplyTriggerPlugin.loopRule(trigger, 0, group, { it.groups }, { true })
+            ReplyTriggerPlugin.loopRule(trigger, 0, group, { it.groups }, { false }, false)
         }
     }
 }
@@ -120,18 +120,24 @@ object ReplyTriggerPlugin : KotlinPlugin(
         botId: Long,
         contact: Contact,
         supplier: (Rule) -> Collection<Long>?,
-        requireAt: (Contact) -> Boolean
+        requireAt: (Contact) -> Boolean,
+        checkPrefix: Boolean
     ) {
         LOOP_RULES@ for (rule in Config.rules!!) {
             for (it in rule.triggers) {
-                val prefix = rule.prefix ?: Config.prefix ?: ""
                 if (checkContact(
                         supplier.invoke(rule),
                         encodedMessage,
                         contact.id,
                         botId,
                         rule.requireAt && requireAt.invoke(contact)
-                    ) && encodedMessage.contains(prefix + it)
+                    ) && encodedMessage.contains(
+                        if (checkPrefix) {
+                            rule.prefix ?: Config.prefix ?: ""
+                        } else {
+                            ""
+                        } + it
+                    )
                 ) {
                     contact.sendMessage(rule.reply)
                     break@LOOP_RULES
@@ -148,12 +154,12 @@ object ReplyTriggerPlugin : KotlinPlugin(
         val eventChannel = GlobalEventChannel.parentScope(this)
         eventChannel.subscribeAlways<GroupMessageEvent> {
             checkBotId(bot.id) {
-                loopRule(message.serializeToMiraiCode(), bot.id, group, { it.groups }, { it is Group })
+                loopRule(message.serializeToMiraiCode(), bot.id, group, { it.groups }, { it is Group }, true)
             }
         }
         eventChannel.subscribeAlways<FriendMessageEvent> {
             checkBotId(bot.id) {
-                loopRule(message.serializeToMiraiCode(), bot.id, friend, { it.friends }, { it is Friend })
+                loopRule(message.serializeToMiraiCode(), bot.id, friend, { it.friends }, { it is Friend }, true)
             }
         }
     }
