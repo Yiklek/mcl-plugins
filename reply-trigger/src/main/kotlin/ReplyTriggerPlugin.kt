@@ -10,6 +10,9 @@ import net.mamoe.mirai.console.command.CommandSender
 import net.mamoe.mirai.console.command.SimpleCommand
 import net.mamoe.mirai.console.data.ReadOnlyPluginConfig
 import net.mamoe.mirai.console.data.value
+import net.mamoe.mirai.console.permission.AbstractPermitteeId
+import net.mamoe.mirai.console.permission.PermissionService
+import net.mamoe.mirai.console.permission.PermissionService.Companion.hasPermission
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescription
 import net.mamoe.mirai.console.plugin.jvm.KotlinPlugin
 import net.mamoe.mirai.contact.Contact
@@ -39,7 +42,6 @@ object Config : ReadOnlyPluginConfig("ReplyTrigger") {
     var rules: List<Rule>? by value()
     var botIds: Set<Long> by value()
     var prefix: String? by value()
-    var command: CommandConfig? by value()
 }
 
 object ReplyCommand : SimpleCommand(
@@ -52,8 +54,9 @@ object ReplyCommand : SimpleCommand(
         if (bot == null) {
             return
         }
-        if (Config.command != null && Config.command!!.replyAllowedBotIds != null
-            && !Config.command!!.replyAllowedBotIds!!.contains(bot!!.id)
+
+        if (!AbstractPermitteeId.ExactUser(bot!!.id)
+                .hasPermission(ReplyTriggerPlugin.PERMISSION_CAN_REPLY)
         ) {
             return
         }
@@ -97,8 +100,6 @@ class Rule(
     val prefix: String? = null, val botIds: Set<Long>? = null
 )
 
-@Serializable
-class CommandConfig(val replyAllowedBotIds: Set<Long>? = null)
 
 suspend fun checkBotId(id: Long, run: suspend () -> Unit) {
     if (Config.botIds.contains(id)) {
@@ -158,9 +159,14 @@ object ReplyTriggerPlugin : KotlinPlugin(
         }
     }
 
+    val PERMISSION_CAN_REPLY by lazy {
+        PermissionService.INSTANCE.register(permissionId("can-reply"), "可响应reply命令")
+    }
+
     override fun onEnable() {
         logger.info { "reply-trigger plugin enable" }
         reloadConfig()
+        PERMISSION_CAN_REPLY
         CommandManager.registerCommand(ReplyCommand)
         CommandManager.registerCommand(SendCommand)
         val eventChannel = GlobalEventChannel.parentScope(this)
