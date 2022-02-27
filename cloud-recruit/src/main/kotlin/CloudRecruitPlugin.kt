@@ -27,7 +27,7 @@ object CloudRecruitPlugin : KotlinPlugin(JvmPluginDescription(
         reloadConfig()
         val eventChannel = GlobalEventChannel.parentScope(this)
         eventChannel.subscribeAlways<MemberJoinEvent> {
-            if (group.id == Config.groupId) {
+            if (group.id == Config.groupId && Config.botIds.contains(bot.id)) {
                 group.sendMessage(buildMessageChain {
                     +"欢迎 "
                     +At(user.id)
@@ -48,4 +48,5 @@ fun reloadConfig() {
 object Config : ReadOnlyPluginConfig("CloudRecruit") {
     var groupId: Long by value()
     var content: String by value()
+    var botIds: List<Long> by value()
 }
