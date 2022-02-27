@@ -88,7 +88,7 @@ fun reloadConfig() {
 class Rule(
     val groups: Set<Long>? = null, val friends: Set<Long>? = null,
     val triggers: Set<String>, val reply: String, val requireAt: Boolean = true,
-    val prefix: String? = null
+    val prefix: String? = null, val botIds: Set<Long>? = null
 )
 
 suspend fun checkBotId(id: Long, run: suspend () -> Unit) {
@@ -124,6 +124,9 @@ object ReplyTriggerPlugin : KotlinPlugin(
         checkPrefix: Boolean
     ) {
         LOOP_RULES@ for (rule in Config.rules!!) {
+            if (rule.botIds != null && !rule.botIds.contains(botId)) {
+                continue@LOOP_RULES
+            }
             for (it in rule.triggers) {
                 if (checkContact(
                         supplier.invoke(rule),
