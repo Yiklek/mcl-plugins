@@ -94,7 +94,7 @@ suspend fun checkBotId(id: Long, run: suspend () -> Unit) {
 
 object ReplyTriggerPlugin : KotlinPlugin(
     JvmPluginDescription(
-        id = "io.github.yiklek.mcl.plugin.reply-trigger", name = "reply-trigger", version = "0.1.0"
+        id = "com.github.yiklek.mcl.plugin.reply-trigger", name = "reply-trigger", version = "0.1.0"
     ) {
         author("Yiklek")
         info(

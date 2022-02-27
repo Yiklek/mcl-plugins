@@ -13,7 +13,7 @@ import net.mamoe.mirai.utils.info
 
 
 object CloudRecruitPlugin : KotlinPlugin(JvmPluginDescription(
-    id = "io.github.yiklek.mcl.plugin.cloud-recruit", name = "cloud-recruit", version = "0.1.0"
+    id = "com.github.yiklek.mcl.plugin.cloud-recruit", name = "cloud-recruit", version = "0.1.0"
 ) {
     author("Yiklek")
     info(
@@ -31,8 +31,7 @@ object CloudRecruitPlugin : KotlinPlugin(JvmPluginDescription(
                 group.sendMessage(buildMessageChain {
                     +"欢迎 "
                     +At(user.id)
-                    +" 加入云计算招新群，请改好群名片，格式：学/专+姓名+分数\n"
-                    +"@我 + help 探索更多信息"
+                    +Config.content
                 })
             }
         }
@@ -48,4 +47,5 @@ fun reloadConfig() {
 
 object Config : ReadOnlyPluginConfig("CloudRecruit") {
     var groupId: Long by value()
+    var content: String by value()
 }
