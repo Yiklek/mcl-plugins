@@ -38,7 +38,7 @@ import net.mamoe.mirai.utils.info
 object Config : ReadOnlyPluginConfig("ReplyTrigger") {
     var rules: List<Rule>? by value()
     var botIds: Set<Long> by value()
-    var prefix: String = ""
+    var prefix: String? by value()
 }
 
 object ReplyCommand : SimpleCommand(
@@ -87,7 +87,8 @@ fun reloadConfig() {
 @Serializable
 class Rule(
     val groups: Set<Long>? = null, val friends: Set<Long>? = null,
-    val triggers: Set<String>, val reply: String, val requireAt: Boolean = true
+    val triggers: Set<String>, val reply: String, val requireAt: Boolean = true,
+    val prefix: String? = null
 )
 
 suspend fun checkBotId(id: Long, run: suspend () -> Unit) {
@@ -123,13 +124,14 @@ object ReplyTriggerPlugin : KotlinPlugin(
     ) {
         LOOP_RULES@ for (rule in Config.rules!!) {
             for (it in rule.triggers) {
+                val prefix = rule.prefix ?: Config.prefix ?: ""
                 if (checkContact(
                         supplier.invoke(rule),
                         encodedMessage,
                         contact.id,
                         botId,
                         rule.requireAt && requireAt.invoke(contact)
-                    ) && encodedMessage.contains(Config.prefix + it)
+                    ) && encodedMessage.contains(prefix + it)
                 ) {
                     contact.sendMessage(rule.reply)
                     break@LOOP_RULES
