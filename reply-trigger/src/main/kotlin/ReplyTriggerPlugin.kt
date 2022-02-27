@@ -53,7 +53,7 @@ object ReplyCommand : SimpleCommand(
         }
         checkBotId(bot!!.id) {
             if (this.subject != null) {
-                ReplyTriggerPlugin.loopRule(trigger, 0, subject!!, {
+                ReplyTriggerPlugin.loopRule(trigger, bot!!.id, subject!!, {
                     if (subject!! is Group) {
                         it.groups
                     } else {
