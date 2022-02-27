@@ -148,7 +148,7 @@ object ReplyTriggerPlugin : KotlinPlugin(
         val eventChannel = GlobalEventChannel.parentScope(this)
         eventChannel.subscribeAlways<GroupMessageEvent> {
             checkBotId(bot.id) {
-                loopRule(message.serializeToMiraiCode(), bot.id, group, { it.groups }, { it is Friend })
+                loopRule(message.serializeToMiraiCode(), bot.id, group, { it.groups }, { it is Group })
             }
         }
         eventChannel.subscribeAlways<FriendMessageEvent> {
