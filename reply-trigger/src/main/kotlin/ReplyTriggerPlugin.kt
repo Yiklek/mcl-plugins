@@ -39,6 +39,7 @@ object Config : ReadOnlyPluginConfig("ReplyTrigger") {
     var rules: List<Rule>? by value()
     var botIds: Set<Long> by value()
     var prefix: String? by value()
+    var command: CommandConfig? by value()
 }
 
 object ReplyCommand : SimpleCommand(
@@ -49,6 +50,11 @@ object ReplyCommand : SimpleCommand(
     suspend// 标记这是指令处理器  // 函数名随意
     fun CommandSender.handle(trigger: String) { // 这两个参数会被作为指令参数要求
         if (bot == null) {
+            return
+        }
+        if (Config.command != null && Config.command!!.replyAllowedBotIds != null
+            && !Config.command!!.replyAllowedBotIds!!.contains(bot!!.id)
+        ) {
             return
         }
         checkBotId(bot!!.id) {
@@ -90,6 +96,9 @@ class Rule(
     val triggers: Set<String>, val reply: String, val requireAt: Boolean = true,
     val prefix: String? = null, val botIds: Set<Long>? = null
 )
+
+@Serializable
+class CommandConfig(val replyAllowedBotIds: Set<Long>? = null)
 
 suspend fun checkBotId(id: Long, run: suspend () -> Unit) {
     if (Config.botIds.contains(id)) {
