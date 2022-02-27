@@ -5,3 +5,9 @@
 out/
 run/
 .run/
+bots
+config
+data
+plugins
+logs
+scripts
