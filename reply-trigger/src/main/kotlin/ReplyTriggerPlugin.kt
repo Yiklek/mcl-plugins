@@ -11,13 +11,17 @@ import net.mamoe.mirai.console.command.SimpleCommand
 import net.mamoe.mirai.console.data.ReadOnlyPluginConfig
 import net.mamoe.mirai.console.data.value
 import net.mamoe.mirai.console.permission.AbstractPermitteeId
+import net.mamoe.mirai.console.permission.Permission
 import net.mamoe.mirai.console.permission.PermissionService
 import net.mamoe.mirai.console.permission.PermissionService.Companion.hasPermission
+import net.mamoe.mirai.console.permission.PermissionService.Companion.testPermission
+import net.mamoe.mirai.console.permission.PermitteeId.Companion.permitteeId
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescription
 import net.mamoe.mirai.console.plugin.jvm.KotlinPlugin
 import net.mamoe.mirai.contact.Contact
 import net.mamoe.mirai.contact.Friend
 import net.mamoe.mirai.contact.Group
+import net.mamoe.mirai.contact.User
 import net.mamoe.mirai.event.GlobalEventChannel
 import net.mamoe.mirai.event.events.FriendMessageEvent
 import net.mamoe.mirai.event.events.GroupMessageEvent
@@ -44,6 +48,11 @@ object Config : ReadOnlyPluginConfig("ReplyTrigger") {
     var prefix: String? by value()
 }
 
+fun Contact.hasPermission(perm: Permission): Boolean {
+    return this is Group && perm.testPermission(permitteeId)
+        || this is User && perm.testPermission(permitteeId)
+}
+
 object ReplyCommand : SimpleCommand(
     ReplyTriggerPlugin, "reply", description = "admin reply conmand"
 ) {
@@ -55,13 +64,15 @@ object ReplyCommand : SimpleCommand(
             return
         }
 
-        if (!AbstractPermitteeId.ExactUser(bot!!.id)
-                .hasPermission(ReplyTriggerPlugin.PERMISSION_CAN_REPLY)
-        ) {
-            return
-        }
+
         checkBotId(bot!!.id) {
             if (this.subject != null) {
+                if (!AbstractPermitteeId.ExactUser(bot!!.id)
+                        .hasPermission(ReplyTriggerPlugin.PERMISSION_CAN_REPLY)
+                    || !subject!!.hasPermission(ReplyTriggerPlugin.PERMISSION_CAN_RECEIVE_REPLY)
+                ) {
+                    return@checkBotId
+                }
                 ReplyTriggerPlugin.loopRule(trigger, 0, subject!!, {
                     if (subject!! is Group) {
                         it.groups
@@ -161,6 +172,9 @@ object ReplyTriggerPlugin : KotlinPlugin(
 
     val PERMISSION_CAN_REPLY by lazy {
         PermissionService.INSTANCE.register(permissionId("can-reply"), "可响应reply命令")
+    }
+    val PERMISSION_CAN_RECEIVE_REPLY by lazy {
+        PermissionService.INSTANCE.register(permissionId("can-receive-reply"), "可响应reply命令")
     }
 
     override fun onEnable() {
