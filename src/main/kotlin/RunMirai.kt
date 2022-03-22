@@ -1,4 +1,5 @@
 import com.github.yiklek.mcl.plugin.cloud.CloudRecruitPlugin
+import com.github.yiklek.mcl.plugin.site_monitor.SiteMonitorPlugin
 import com.github.yiklek.mcl.plugin.trigger.ReplyTriggerPlugin
 import net.mamoe.mirai.console.MiraiConsole
 import net.mamoe.mirai.console.plugin.PluginManager.INSTANCE.enable
@@ -16,7 +17,8 @@ suspend fun main() {
         PluginMain,
         ReplyTriggerPlugin,
         CloudRecruitPlugin,
-        MiraiDevicePlugin
+        MiraiDevicePlugin,
+        SiteMonitorPlugin
     )
     pluginList.forEach {
         it.load()
