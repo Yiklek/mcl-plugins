@@ -22,6 +22,7 @@ import net.mamoe.mirai.console.data.ReadOnlyPluginConfig
 import net.mamoe.mirai.console.data.value
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescription
 import net.mamoe.mirai.console.plugin.jvm.KotlinPlugin
+import net.mamoe.mirai.utils.debug
 import net.mamoe.mirai.utils.info
 import org.apache.commons.codec.digest.DigestUtils
 import org.apache.commons.lang3.StringUtils
@@ -118,7 +119,7 @@ object SiteMonitorPlugin : KotlinPlugin(JvmPluginDescription(
                     DataCache.md5cache[ruleConfigHash] = itemCache
                 }
                 val contentHash = itemCache.md5
-                logger.info { "checking content hash ${rule.name} ==>> old:${contentHash} new:${md5Hex}" }
+                logger.debug { "checking content hash ${rule.name} ==>> old:${contentHash} new:${md5Hex}" }
                 if (selected == null) {
                     logger.warning("can't found item via selector: ${rule.selector}")
                     continue
@@ -175,7 +176,7 @@ object SiteMonitorPlugin : KotlinPlugin(JvmPluginDescription(
                 itemCache.md5 = md5Hex
                 itemCache.text = selected.text()
                 DataCache.md5cache[ruleConfigHash] = itemCache
-                logger.info { DataCache.md5cache.toString() }
+                logger.debug { Json.encodeToString(DataCache.md5cache) }
                 DataCache.save()
             } catch (e: Exception) {
                 SiteMonitorPlugin.logger.error(e)
