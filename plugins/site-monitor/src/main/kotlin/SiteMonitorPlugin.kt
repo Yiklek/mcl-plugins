@@ -108,76 +108,80 @@ object SiteMonitorPlugin : KotlinPlugin(JvmPluginDescription(
     private suspend fun loopRule(client: HttpClient, rule: Rule) {
         val ruleConfigHash = DigestUtils.md5Hex(Json.encodeToString(rule))
         while (true) {
-            val content: String = client.request<HttpResponse>(rule.url).receive()
-            val selected = Jsoup.parse(content).selectFirst(rule.selector)
-            val md5Hex = DigestUtils.md5Hex(selected?.toString())
-            var itemCache = DataCache.md5cache[ruleConfigHash]
-            if (itemCache == null) {
-                itemCache = RuleCache(null, null)
-                DataCache.md5cache[ruleConfigHash] = itemCache
-            }
-            val contentHash = itemCache.md5
-            logger.info { "checking content hash ${rule.name} ==>> old:${contentHash} new:${md5Hex}" }
-            if (selected == null) {
-                logger.warning("can't found item via selector: ${rule.selector}")
-                delay(rule.interval.seconds)
-                continue
-            }
-            if (!StringUtils.isAllEmpty(contentHash) && md5Hex != contentHash) {
-                // notify
-                rule.fromBots.forEach { botId ->
-                    val bot = Bot.getInstance(botId)
-                    // group
-                    val render = getNotifyTemplate(rule.notifyTemplate)
-                    rule.toGroups?.forEach { groupId ->
-                        val group = bot.getGroup(groupId)
-                        val notify = render.render(
-                            TemplateFields(
-                                ruleName = rule.name,
-                                ruleUrl = rule.url,
-                                ruleSector = rule.selector,
-                                fromBot = botId,
-                                toFriend = null,
-                                toGroup = groupId,
-                                to = groupId,
-                                text = selected.text(),
-                                oldText = itemCache.text,
-                                newText = selected.text(),
-                                oldHash = itemCache.md5,
-                                newHash = md5Hex
-                            ), EN_US
-                        ).notify
-                        group?.sendMessage(notify)
-                    }
-                    rule.toFriends?.forEach { friendId ->
-                        val friend = bot.getFriend(friendId)
-                        val notify = render.render(
-                            TemplateFields(
-                                ruleName = rule.name,
-                                ruleUrl = rule.url,
-                                ruleSector = rule.selector,
-                                fromBot = botId,
-                                toFriend = friendId,
-                                toGroup = null,
-                                to = friendId,
-                                text = selected.text(),
-                                oldText = itemCache.text,
-                                newText = selected.text(),
-                                oldHash = itemCache.md5,
-                                newHash = md5Hex
-                            ), EN_US
-                        ).notify
-                        friend?.sendMessage(notify)
-                    }
+            try {
+                val content: String = client.request<HttpResponse>(rule.url).receive()
+                val selected = Jsoup.parse(content).selectFirst(rule.selector)
+                val md5Hex = DigestUtils.md5Hex(selected?.toString())
+                var itemCache = DataCache.md5cache[ruleConfigHash]
+                if (itemCache == null) {
+                    itemCache = RuleCache(null, null)
+                    DataCache.md5cache[ruleConfigHash] = itemCache
                 }
-                break
+                val contentHash = itemCache.md5
+                logger.info { "checking content hash ${rule.name} ==>> old:${contentHash} new:${md5Hex}" }
+                if (selected == null) {
+                    logger.warning("can't found item via selector: ${rule.selector}")
+                    continue
+                }
+                if (!StringUtils.isAllEmpty(contentHash) && md5Hex != contentHash) {
+                    // notify
+                    rule.fromBots.forEach { botId ->
+                        val bot = Bot.getInstance(botId)
+                        // group
+                        val render = getNotifyTemplate(rule.notifyTemplate)
+                        rule.toGroups?.forEach { groupId ->
+                            val group = bot.getGroup(groupId)
+                            val notify = render.render(
+                                TemplateFields(
+                                    ruleName = rule.name,
+                                    ruleUrl = rule.url,
+                                    ruleSector = rule.selector,
+                                    fromBot = botId,
+                                    toFriend = null,
+                                    toGroup = groupId,
+                                    to = groupId,
+                                    text = selected.text(),
+                                    oldText = itemCache.text,
+                                    newText = selected.text(),
+                                    oldHash = itemCache.md5,
+                                    newHash = md5Hex
+                                ), EN_US
+                            ).notify
+                            group?.sendMessage(notify)
+                        }
+                        rule.toFriends?.forEach { friendId ->
+                            val friend = bot.getFriend(friendId)
+                            val notify = render.render(
+                                TemplateFields(
+                                    ruleName = rule.name,
+                                    ruleUrl = rule.url,
+                                    ruleSector = rule.selector,
+                                    fromBot = botId,
+                                    toFriend = friendId,
+                                    toGroup = null,
+                                    to = friendId,
+                                    text = selected.text(),
+                                    oldText = itemCache.text,
+                                    newText = selected.text(),
+                                    oldHash = itemCache.md5,
+                                    newHash = md5Hex
+                                ), EN_US
+                            ).notify
+                            friend?.sendMessage(notify)
+                        }
+                    }
+                    break
+                }
+                itemCache.md5 = md5Hex
+                itemCache.text = selected.text()
+                DataCache.md5cache[ruleConfigHash] = itemCache
+                logger.info { DataCache.md5cache.toString() }
+                DataCache.save()
+            } catch (e){
+
+            } finally {
+                delay(rule.interval.seconds)
             }
-            itemCache.md5 = md5Hex
-            itemCache.text = selected.text()
-            DataCache.md5cache[ruleConfigHash] = itemCache
-            logger.info { DataCache.md5cache.toString() }
-            DataCache.save()
-            delay(rule.interval.seconds)
         }
     }
 
