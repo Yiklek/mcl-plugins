@@ -177,8 +177,8 @@ object SiteMonitorPlugin : KotlinPlugin(JvmPluginDescription(
                 DataCache.md5cache[ruleConfigHash] = itemCache
                 logger.info { DataCache.md5cache.toString() }
                 DataCache.save()
-            } catch (e){
-
+            } catch (e: Exception) {
+                SiteMonitorPlugin.logger.error(e)
             } finally {
                 delay(rule.interval.seconds)
             }
