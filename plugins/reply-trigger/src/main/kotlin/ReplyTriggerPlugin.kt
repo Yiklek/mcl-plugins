@@ -100,8 +100,8 @@ object SendCommand : SimpleCommand(
 
 fun reloadConfig() {
     Config.reload()
-    ReplyTriggerPlugin.logger.info { "reply-trigger config rules: %s".format(Json.encodeToString(Config.rules)) }
-    ReplyTriggerPlugin.logger.info { "reply-trigger config botIds: %s".format(Json.encodeToString(Config.botIds)) }
+    ReplyTriggerPlugin.logger.info { "config rules: %s".format(Json.encodeToString(Config.rules)) }
+    ReplyTriggerPlugin.logger.info { "config botIds: %s".format(Json.encodeToString(Config.botIds)) }
 }
 
 @Serializable
@@ -178,7 +178,7 @@ object ReplyTriggerPlugin : KotlinPlugin(
     }
 
     override fun onEnable() {
-        logger.info { "reply-trigger plugin enable" }
+        logger.info { "plugin enable" }
         reloadConfig()
         PERMISSION_CAN_REPLY
         CommandManager.registerCommand(ReplyCommand)

@@ -23,7 +23,7 @@ object CloudRecruitPlugin : KotlinPlugin(JvmPluginDescription(
     )
 }) {
     override fun onEnable() {
-        logger.info { "cloud-recruit plugin enable" }
+        logger.info { "plugin enable" }
         reloadConfig()
         val eventChannel = GlobalEventChannel.parentScope(this)
         eventChannel.subscribeAlways<MemberJoinEvent> {

@@ -6,4 +6,5 @@ dependencies {
     implementation("org.apache.commons:commons-lang3:3.12.0")
     // template
     implementation("app.cash.barber:barber:0.3.3")
+    implementation("io.github.java-diff-utils:java-diff-utils:4.11")
 }

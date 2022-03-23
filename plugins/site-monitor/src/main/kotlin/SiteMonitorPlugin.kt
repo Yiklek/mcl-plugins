@@ -6,6 +6,8 @@ import app.cash.barber.locale.Locale.Companion.EN_US
 import app.cash.barber.models.Document
 import app.cash.barber.models.DocumentData
 import app.cash.barber.models.DocumentTemplate
+import com.github.difflib.DiffUtils
+import com.github.difflib.UnifiedDiffUtils
 import com.github.yiklek.mcl.plugin.site_monitor.SiteMonitorPlugin.reload
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -29,6 +31,7 @@ import org.apache.commons.lang3.StringUtils
 import org.jsoup.Jsoup
 import kotlin.time.Duration.Companion.seconds
 
+
 object Config : ReadOnlyPluginConfig("SiteMonitor") {
     var rules: List<Rule>? by value()
     var botIds: Set<Long> by value()
@@ -43,13 +46,13 @@ class RuleCache(var md5: String?, var text: String?)
 
 fun reloadConfig() {
     Config.reload()
-    SiteMonitorPlugin.logger.info { "site-monitor config rules: %s".format(Json.encodeToString(Config.rules)) }
-    SiteMonitorPlugin.logger.info { "site-monitor config botIds: %s".format(Json.encodeToString(Config.botIds)) }
+    SiteMonitorPlugin.logger.info { "config rules: %s".format(Json.encodeToString(Config.rules)) }
+    SiteMonitorPlugin.logger.info { "config botIds: %s".format(Json.encodeToString(Config.botIds)) }
 }
 
 fun reloadDataCache() {
     DataCache.reload()
-    SiteMonitorPlugin.logger.info { "site-monitor data cache md5cache: %s".format(DataCache.md5cache) }
+    SiteMonitorPlugin.logger.info { "data cache md5cache: %s".format(DataCache.md5cache) }
 }
 
 @Serializable
@@ -76,7 +79,8 @@ data class TemplateFields(
     val oldText: String?,
     val newText: String,
     val oldHash: String?,
-    val newHash: String
+    val newHash: String,
+    val diff: String?
 ) : DocumentData
 
 data class NotifyDocument(
@@ -145,7 +149,8 @@ object SiteMonitorPlugin : KotlinPlugin(JvmPluginDescription(
                                     oldText = itemCache.text,
                                     newText = selected.text(),
                                     oldHash = itemCache.md5,
-                                    newHash = md5Hex
+                                    newHash = md5Hex,
+                                    diff = getDiff(itemCache.text, selected.text())
                                 ), EN_US
                             ).notify
                             group?.sendMessage(notify)
@@ -165,7 +170,8 @@ object SiteMonitorPlugin : KotlinPlugin(JvmPluginDescription(
                                     oldText = itemCache.text,
                                     newText = selected.text(),
                                     oldHash = itemCache.md5,
-                                    newHash = md5Hex
+                                    newHash = md5Hex,
+                                    diff = getDiff(itemCache.text, selected.text())
                                 ), EN_US
                             ).notify
                             friend?.sendMessage(notify)
@@ -187,7 +193,7 @@ object SiteMonitorPlugin : KotlinPlugin(JvmPluginDescription(
     }
 
     override fun onEnable() {
-        logger.info { "site-monitor plugin enable" }
+        logger.info { "plugin enable" }
         reloadConfig()
         reloadDataCache()
 
@@ -200,4 +206,15 @@ object SiteMonitorPlugin : KotlinPlugin(JvmPluginDescription(
             }
         }
     }
+}
+
+fun getDiff(old: String?, new: String?): String {
+    if (old == null || new == null) {
+        return ""
+    }
+    val oldList = old.split("\n")
+    val newList = new.split("\n")
+    val diff = DiffUtils.diff(oldList, newList)
+    val unifiedDiff = UnifiedDiffUtils.generateUnifiedDiff("old", "new", oldList, diff, 0)
+    return unifiedDiff.joinToString("\n")
 }
