@@ -20,17 +20,25 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import net.mamoe.mirai.Bot
+import net.mamoe.mirai.console.command.ConsoleCommandSender.permitteeId
 import net.mamoe.mirai.console.data.AutoSavePluginData
 import net.mamoe.mirai.console.data.ReadOnlyPluginConfig
 import net.mamoe.mirai.console.data.value
+import net.mamoe.mirai.console.permission.AbstractPermitteeId
+import net.mamoe.mirai.console.permission.PermissionService
+import net.mamoe.mirai.console.permission.PermissionService.Companion.hasPermission
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescription
 import net.mamoe.mirai.console.plugin.jvm.KotlinPlugin
+import net.mamoe.mirai.contact.Contact
+import net.mamoe.mirai.contact.Friend
+import net.mamoe.mirai.contact.Group
 import net.mamoe.mirai.message.code.MiraiCode.deserializeMiraiCode
 import net.mamoe.mirai.utils.debug
 import net.mamoe.mirai.utils.info
 import org.apache.commons.codec.digest.DigestUtils
 import org.apache.commons.lang3.StringUtils
 import org.jsoup.Jsoup
+import java.util.stream.Collectors
 import kotlin.time.Duration.Companion.seconds
 
 
@@ -114,6 +122,72 @@ object SiteMonitorPlugin : KotlinPlugin(JvmPluginDescription(
         """.trimIndent()
     )
 }) {
+    suspend fun <T : Contact> notifyContact(
+        contacts: Set<T?>, rule: Rule, render: Barber<NotifyDocument>, botId: Long,
+        itemCache: RuleCache, newItemCache: RuleCache
+    ) {
+        contacts.forEach {
+            it?.run {
+                if (permitteeId.hasPermission(PERMISSION_CAN_RECEIVE_NOTIFY)) {
+                    val notify = render.render(
+                        TemplateFields(
+                            ruleName = rule.name,
+                            ruleUrl = rule.url,
+                            ruleSector = rule.selector,
+                            fromBot = botId,
+                            toFriend = if (it is Friend) {
+                                id
+                            } else {
+                                null
+                            },
+                            toGroup = if (it is Group) {
+                                id
+                            } else {
+                                null
+                            },
+                            to = id,
+                            text = newItemCache.text!!,
+                            oldText = itemCache.text,
+                            newText = newItemCache.text!!,
+                            oldHash = itemCache.md5,
+                            newHash = newItemCache.md5!!,
+                            diff = getDiff(itemCache.text, newItemCache.text)
+                        ), EN_US
+                    ).notify
+                    SiteMonitorPlugin.logger.info(notify)
+                    sendMessage(notify.deserializeMiraiCode())
+                }
+            }
+        }
+    }
+
+    private suspend fun notifyRuleResult(rule: Rule, itemCache: RuleCache, newItemCache: RuleCache) {
+        rule.fromBots.forEach { botId ->
+            if (!AbstractPermitteeId.ExactUser(botId)
+                    .hasPermission(PERMISSION_CAN_NOTIFY)
+            ) {
+                return
+            }
+            val bot = Bot.getInstance(botId)
+            // group
+            val render = getNotifyTemplate(rule.notifyTemplate)
+            rule.toGroups?.let {
+                val groups = it.stream().map { gid -> bot.getGroup(gid) }.filter { g ->
+                    g != null
+                }.collect(Collectors.toSet())!!
+                notifyContact(groups, rule, render, botId, itemCache, newItemCache)
+            }
+            rule.toFriends?.let {
+                val friends = it.stream().map { fid -> bot.getFriend(fid) }.filter { f ->
+                    f != null
+                }.collect(Collectors.toSet())!!
+                notifyContact(friends, rule, render, botId, itemCache, newItemCache)
+            }
+
+
+        }
+    }
+
     private suspend fun loopRule(client: HttpClient, rule: Rule) {
         val ruleConfigHash = DigestUtils.md5Hex(Json.encodeToString(rule))
         while (true) {
@@ -126,6 +200,7 @@ object SiteMonitorPlugin : KotlinPlugin(JvmPluginDescription(
                     itemCache = RuleCache(null, null)
                     DataCache.md5cache[ruleConfigHash] = itemCache
                 }
+                var newItemCache = RuleCache(md5Hex, selected?.text())
                 val contentHash = itemCache.md5
                 logger.debug { "checking content hash ${rule.name} ==>> old:${contentHash} new:${md5Hex}" }
                 if (selected == null) {
@@ -134,56 +209,7 @@ object SiteMonitorPlugin : KotlinPlugin(JvmPluginDescription(
                 }
                 if (!StringUtils.isAllEmpty(contentHash) && md5Hex != contentHash) {
                     // notify
-                    rule.fromBots.forEach { botId ->
-                        val bot = Bot.getInstance(botId)
-                        // group
-                        val render = getNotifyTemplate(rule.notifyTemplate)
-                        rule.toGroups?.forEach { groupId ->
-                            val group = bot.getGroup(groupId)
-                            val notify = render.render(
-                                TemplateFields(
-                                    ruleName = rule.name,
-                                    ruleUrl = rule.url,
-                                    ruleSector = rule.selector,
-                                    fromBot = botId,
-                                    toFriend = null,
-                                    toGroup = groupId,
-                                    to = groupId,
-                                    text = selected.text(),
-                                    oldText = itemCache.text,
-                                    newText = selected.text(),
-                                    oldHash = itemCache.md5,
-                                    newHash = md5Hex,
-                                    diff = getDiff(itemCache.text, selected.text())
-                                ), EN_US
-                            ).notify
-                            SiteMonitorPlugin.logger.info(notify)
-                            group?.sendMessage(notify.deserializeMiraiCode())
-                        }
-                        rule.toFriends?.forEach { friendId ->
-                            val friend = bot.getFriend(friendId)
-                            val notify = render.render(
-                                TemplateFields(
-                                    ruleName = rule.name,
-                                    ruleUrl = rule.url,
-                                    ruleSector = rule.selector,
-                                    fromBot = botId,
-                                    toFriend = friendId,
-                                    toGroup = null,
-                                    to = friendId,
-                                    text = selected.text(),
-                                    oldText = itemCache.text,
-                                    newText = selected.text(),
-                                    oldHash = itemCache.md5,
-                                    newHash = md5Hex,
-                                    diff = getDiff(itemCache.text, selected.text())
-                                ), EN_US
-                            ).notify
-                            SiteMonitorPlugin.logger.info(notify)
-                            friend?.sendMessage(notify.deserializeMiraiCode())
-                        }
-                    }
-                    break
+                    notifyRuleResult(rule, itemCache, newItemCache)
                 }
                 itemCache.md5 = md5Hex
                 itemCache.text = selected.text()
@@ -198,11 +224,19 @@ object SiteMonitorPlugin : KotlinPlugin(JvmPluginDescription(
         }
     }
 
+    private val PERMISSION_CAN_NOTIFY by lazy {
+        PermissionService.INSTANCE.register(permissionId("can-notify"), "机器人可通知结果")
+    }
+    private val PERMISSION_CAN_RECEIVE_NOTIFY by lazy {
+        PermissionService.INSTANCE.register(permissionId("can-receive-notify"), "群/好友可接收结果")
+    }
+
     override fun onEnable() {
         logger.info { "plugin enable" }
+        PERMISSION_CAN_NOTIFY
+        PERMISSION_CAN_RECEIVE_NOTIFY
         reloadConfig()
         reloadDataCache()
-
         val client = HttpClient()
         Config.rules?.let { it ->
             it.forEach { rule ->
