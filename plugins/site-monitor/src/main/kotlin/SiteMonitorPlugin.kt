@@ -3,6 +3,7 @@ package com.github.yiklek.mcl.plugin.site_monitor
 import app.cash.barber.Barber
 import app.cash.barber.BarbershopBuilder
 import app.cash.barber.locale.Locale.Companion.EN_US
+import app.cash.barber.models.BarberFieldEncoding
 import app.cash.barber.models.Document
 import app.cash.barber.models.DocumentData
 import app.cash.barber.models.DocumentTemplate
@@ -24,6 +25,7 @@ import net.mamoe.mirai.console.data.ReadOnlyPluginConfig
 import net.mamoe.mirai.console.data.value
 import net.mamoe.mirai.console.plugin.jvm.JvmPluginDescription
 import net.mamoe.mirai.console.plugin.jvm.KotlinPlugin
+import net.mamoe.mirai.message.code.MiraiCode.deserializeMiraiCode
 import net.mamoe.mirai.utils.debug
 import net.mamoe.mirai.utils.info
 import org.apache.commons.codec.digest.DigestUtils
@@ -95,7 +97,9 @@ fun getNotifyTemplate(notify: String): Barber<NotifyDocument> {
         ), source = TemplateFields::class, targets = setOf(NotifyDocument::class), locale = EN_US
     )
     val barbershop =
-        BarbershopBuilder().installDocumentTemplate<TemplateFields>(notifyTemplate).installDocument<NotifyDocument>()
+        BarbershopBuilder().installDocumentTemplate<TemplateFields>(notifyTemplate)
+            .installDocument<NotifyDocument>()
+            .setDefaultBarberFieldEncoding(BarberFieldEncoding.STRING_PLAINTEXT)
             .build()
     return barbershop.getBarber(TemplateFields::class, NotifyDocument::class)
 }
@@ -153,7 +157,8 @@ object SiteMonitorPlugin : KotlinPlugin(JvmPluginDescription(
                                     diff = getDiff(itemCache.text, selected.text())
                                 ), EN_US
                             ).notify
-                            group?.sendMessage(notify)
+                            SiteMonitorPlugin.logger.info(notify)
+                            group?.sendMessage(notify.deserializeMiraiCode())
                         }
                         rule.toFriends?.forEach { friendId ->
                             val friend = bot.getFriend(friendId)
@@ -174,7 +179,8 @@ object SiteMonitorPlugin : KotlinPlugin(JvmPluginDescription(
                                     diff = getDiff(itemCache.text, selected.text())
                                 ), EN_US
                             ).notify
-                            friend?.sendMessage(notify)
+                            SiteMonitorPlugin.logger.info(notify)
+                            friend?.sendMessage(notify.deserializeMiraiCode())
                         }
                     }
                     break
